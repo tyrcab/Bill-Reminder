@@ -1,0 +1,16 @@
+{
+  "name": "bill-reminder",
+  "version": "1.0.0",
+  "description": "Bill reminder system with Gmail integration, Google Calendar, Telegram notifications, and PWA",
+  "private": true,
+  "scripts": {
+    "backend:dev": "cd backend && npm run dev",
+    "frontend:dev": "cd frontend && npm run dev",
+    "backend:start": "cd backend && npm start",
+    "frontend:build": "cd frontend && npm run build",
+    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "deploy:hosting": "cd frontend && npm run build && cd .. && firebase deploy --only hosting",
+    "deploy:firestore": "firebase deploy --only firestore",
+    "deploy": "cd frontend && npm run build && cd .. && firebase deploy"
+  }
+}

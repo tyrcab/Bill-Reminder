@@ -1,0 +1,18 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /bills/{billId} {
+      allow read, write: if request.auth != null;
+    }
+    match /ignored_senders/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    match /push_tokens/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /config/{docId} {
+      allow read, write: if false;
+    }
+  }
+}
