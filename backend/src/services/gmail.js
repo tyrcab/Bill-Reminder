@@ -166,9 +166,17 @@ async function fetchBillEmails(daysBack = 30, includeProcessed = false) {
       maxResults: 10,
     });
 
+    // Fourth targeted search for Afterpay/forwarded bills
+    const afterpayResponse = await gmail.users.messages.list({
+      userId: 'me',
+      q: `"payment reminder" newer_than:${daysBack}d`,
+      maxResults: 20,
+    });
+
     console.log(`[Gmail] Main search found: ${response.data.messages?.length || 0} emails`);
     console.log(`[Gmail] Powershop search found: ${powershopResponse.data.messages?.length || 0} emails`);
     console.log(`[Gmail] GloBird search found: ${globirdResponse.data.messages?.length || 0} emails`);
+    console.log(`[Gmail] Payment reminder search found: ${afterpayResponse.data.messages?.length || 0} emails`);
 
     // Merge results (deduplicate by id)
     const allMessageIds = new Set();
@@ -185,6 +193,12 @@ async function fetchBillEmails(daysBack = 30, includeProcessed = false) {
       }
     }
     for (const msg of (globirdResponse.data.messages || [])) {
+      if (!allMessageIds.has(msg.id)) {
+        allMessageIds.add(msg.id);
+        allMessages.push(msg);
+      }
+    }
+    for (const msg of (afterpayResponse.data.messages || [])) {
       if (!allMessageIds.has(msg.id)) {
         allMessageIds.add(msg.id);
         allMessages.push(msg);
