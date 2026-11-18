@@ -81,6 +81,25 @@ app.get('/api/debug/bills', async (req, res) => {
   }
 });
 
+// Cleanup: delete bills with null/missing due_date that came from Gmail (broken parse)
+app.delete('/api/debug/cleanup-null-dates', async (req, res) => {
+  try {
+    const admin = require('firebase-admin');
+    const firestore = admin.firestore();
+    const snapshot = await firestore.collection('bills').get();
+    const toDelete = snapshot.docs.filter(d => {
+      const data = d.data();
+      return data.source === 'gmail' && (!data.due_date || data.due_date === null || data.due_date === '');
+    });
+    for (const doc of toDelete) {
+      await doc.ref.delete();
+    }
+    res.json({ deleted: toDelete.length, message: `Deleted ${toDelete.length} bills with null due_date` });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Test Telegram connection
 app.post('/api/test-telegram', async (req, res) => {
   try {
