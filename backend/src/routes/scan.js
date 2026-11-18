@@ -85,7 +85,7 @@ async function scanAndProcessBills(daysBack = 30, includeProcessed = false) {
       console.log(`[Scan] Processing: "${subj}" (email_id: ${email.id.substring(0, 12)}...)`);
 
       // Parse the email for bill details
-      const parsed = parseBillEmail(email);
+      const parsed = await parseBillEmail(email);
       if (!parsed) {
         const subj = email.payload.headers.find(h => h.name.toLowerCase() === 'subject')?.value || '';
         if (/water|optus|superloop|gas|electric|spintel|afterpay|powershop/i.test(subj)) {

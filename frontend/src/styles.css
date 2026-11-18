@@ -2245,3 +2245,61 @@ body {
 .btn-sync:hover {
   background: rgba(255, 255, 255, 0.3);
 }
+
+
+/* Edit bill form */
+.bill-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+}
+
+.bill-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.bill-edit-field label {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.bill-edit-field input {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: var(--input-bg);
+  color: var(--text);
+}
+
+.bill-edit-field input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.bill-edit-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.bill-edit-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+/* Edit button */
+.btn-edit {
+  background: #e8f0fe;
+  color: var(--primary);
+  border: none;
+}
+
+.btn-edit:hover {
+  background: #d2e3fc;
+}

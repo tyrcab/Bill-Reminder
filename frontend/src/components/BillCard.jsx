@@ -5,6 +5,11 @@ import { useToast } from './Toast';
 
 function BillCard({ bill, onDelete, onMarkPaid, onIgnore }) {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editAmount, setEditAmount] = useState(bill.amount?.toFixed(2) || '');
+  const [editDueDate, setEditDueDate] = useState(bill.due_date || '');
+  const [editDescription, setEditDescription] = useState(bill.description || '');
+  const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
 
   const dueDate = new Date(bill.due_date + 'T00:00:00');
@@ -59,6 +64,31 @@ function BillCard({ bill, onDelete, onMarkPaid, onIgnore }) {
     }
   }
 
+  async function handleSaveEdit(e) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await editBill(bill.id, {
+        amount: parseFloat(editAmount),
+        due_date: editDueDate,
+        description: editDescription,
+      });
+      showToast('Bill updated!', 'success');
+      setEditing(false);
+    } catch (err) {
+      showToast('Failed to update: ' + err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleCancelEdit() {
+    setEditAmount(bill.amount?.toFixed(2) || '');
+    setEditDueDate(bill.due_date || '');
+    setEditDescription(bill.description || '');
+    setEditing(false);
+  }
+
   const formattedDate = dueDate.toLocaleDateString('en-AU', {
     weekday: 'short',
     day: 'numeric',
@@ -96,26 +126,73 @@ function BillCard({ bill, onDelete, onMarkPaid, onIgnore }) {
         </div>
       )}
 
-      <h4 className="bill-description">
-        {bill.description}
-        {bill.recurrence && bill.recurrence !== 'none' && (
-          <span className="bill-recurrence">🔁 {bill.recurrence}</span>
-        )}
-      </h4>
+      {/* Edit form */}
+      {editing ? (
+        <form className="bill-edit-form" onSubmit={handleSaveEdit}>
+          <div className="bill-edit-field">
+            <label>Description</label>
+            <input
+              type="text"
+              value={editDescription}
+              onChange={e => setEditDescription(e.target.value)}
+              required
+            />
+          </div>
+          <div className="bill-edit-row">
+            <div className="bill-edit-field">
+              <label>Amount (AUD)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={editAmount}
+                onChange={e => setEditAmount(e.target.value)}
+                required
+              />
+            </div>
+            <div className="bill-edit-field">
+              <label>Due Date</label>
+              <input
+                type="date"
+                value={editDueDate}
+                onChange={e => setEditDueDate(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+          <div className="bill-edit-actions">
+            <button type="submit" className="btn btn-sm btn-success" disabled={saving}>
+              {saving ? '...' : '💾 Save'}
+            </button>
+            <button type="button" className="btn btn-sm btn-secondary" onClick={handleCancelEdit}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <>
+          <h4 className="bill-description">
+            {bill.description}
+            {bill.recurrence && bill.recurrence !== 'none' && (
+              <span className="bill-recurrence">🔁 {bill.recurrence}</span>
+            )}
+          </h4>
 
-      <div className="bill-details">
-        <div className="bill-amount">
-          <span className="label">💰 Amount</span>
-          <span className="value">AUD {bill.amount.toFixed(2)}</span>
-        </div>
-        <div className="bill-date">
-          <span className="label">📅 Due</span>
-          <span className="value">{formattedDate}</span>
-        </div>
-      </div>
+          <div className="bill-details">
+            <div className="bill-amount">
+              <span className="label">💰 Amount</span>
+              <span className="value">AUD {bill.amount.toFixed(2)}</span>
+            </div>
+            <div className="bill-date">
+              <span className="label">📅 Due</span>
+              <span className="value">{formattedDate}</span>
+            </div>
+          </div>
+        </>
+      )}
 
       <div className="bill-actions">
-        {bill.status === 'pending' && (
+        {!editing && bill.status === 'pending' && (
           <>
             <button
               className="btn btn-sm btn-success"
@@ -133,7 +210,7 @@ function BillCard({ bill, onDelete, onMarkPaid, onIgnore }) {
             </button>
           </>
         )}
-        {bill.status === 'paid' && (
+        {!editing && bill.status === 'paid' && (
           <button
             className="btn btn-sm btn-unpaid"
             onClick={() => onMarkPaid(bill.id, 'pending')}
@@ -142,7 +219,16 @@ function BillCard({ bill, onDelete, onMarkPaid, onIgnore }) {
             ↩ Unpaid
           </button>
         )}
-        {bill.source === 'gmail' && (
+        {!editing && (
+          <button
+            className="btn btn-sm btn-edit"
+            onClick={() => setEditing(true)}
+            title="Edit bill"
+          >
+            ✏️
+          </button>
+        )}
+        {!editing && bill.source === 'gmail' && (
           <button
             className="btn btn-sm btn-ignore"
             onClick={handleIgnore}
@@ -151,13 +237,15 @@ function BillCard({ bill, onDelete, onMarkPaid, onIgnore }) {
             🚫
           </button>
         )}
-        <button
-          className="btn btn-sm btn-danger"
-          onClick={() => onDelete(bill.id)}
-          title="Delete bill"
-        >
-          🗑️
-        </button>
+        {!editing && (
+          <button
+            className="btn btn-sm btn-danger"
+            onClick={() => onDelete(bill.id)}
+            title="Delete bill"
+          >
+            🗑️
+          </button>
+        )}
       </div>
     </article>
   );

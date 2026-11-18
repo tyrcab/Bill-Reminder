@@ -129,6 +129,13 @@ async function fetchBillEmails(daysBack = 30, includeProcessed = false) {
     'telstra',
     'powershop',
     'south east water',
+    'globird',
+    'energy australia',
+    'agl',
+    'origin energy',
+    'alinta',
+    'simply energy',
+    'red energy',
     'nbn',
   ];
 
@@ -152,8 +159,16 @@ async function fetchBillEmails(daysBack = 30, includeProcessed = false) {
       maxResults: 10,
     });
 
+    // Third targeted search for GloBird
+    const globirdResponse = await gmail.users.messages.list({
+      userId: 'me',
+      q: `from:globird newer_than:${daysBack}d`,
+      maxResults: 10,
+    });
+
     console.log(`[Gmail] Main search found: ${response.data.messages?.length || 0} emails`);
     console.log(`[Gmail] Powershop search found: ${powershopResponse.data.messages?.length || 0} emails`);
+    console.log(`[Gmail] GloBird search found: ${globirdResponse.data.messages?.length || 0} emails`);
 
     // Merge results (deduplicate by id)
     const allMessageIds = new Set();
@@ -164,6 +179,12 @@ async function fetchBillEmails(daysBack = 30, includeProcessed = false) {
       allMessages.push(msg);
     }
     for (const msg of (powershopResponse.data.messages || [])) {
+      if (!allMessageIds.has(msg.id)) {
+        allMessageIds.add(msg.id);
+        allMessages.push(msg);
+      }
+    }
+    for (const msg of (globirdResponse.data.messages || [])) {
       if (!allMessageIds.has(msg.id)) {
         allMessageIds.add(msg.id);
         allMessages.push(msg);
@@ -192,9 +213,77 @@ async function fetchBillEmails(daysBack = 30, includeProcessed = false) {
 }
 
 /**
- * Parse a Gmail message to extract bill details.
+ * Extract text from a PDF attachment buffer using pdf-parse.
  */
-function parseBillEmail(message) {
+async function extractPdfText(buffer) {
+  try {
+    const pdfParse = require('pdf-parse');
+    const data = await pdfParse(buffer);
+    return data.text || '';
+  } catch (err) {
+    console.warn('[PDF] Failed to parse PDF:', err.message);
+    return '';
+  }
+}
+
+/**
+ * Download a PDF attachment from Gmail and extract its text.
+ */
+async function getPdfAttachmentText(message) {
+  const oauth2Client = await getOAuth2Client();
+  const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+
+  // Find PDF attachments in the message
+  const pdfParts = [];
+
+  function findPdfs(payload) {
+    if (!payload) return;
+    if (payload.mimeType === 'application/pdf' && payload.body) {
+      pdfParts.push(payload);
+    }
+    if (payload.parts) {
+      payload.parts.forEach(findPdfs);
+    }
+  }
+
+  findPdfs(message.payload);
+
+  if (pdfParts.length === 0) return '';
+
+  // Download and parse the first PDF
+  const part = pdfParts[0];
+  let pdfBuffer;
+
+  if (part.body.data) {
+    // Inline data
+    pdfBuffer = Buffer.from(part.body.data, 'base64');
+  } else if (part.body.attachmentId) {
+    // External attachment - need to download
+    try {
+      const attachment = await gmail.users.messages.attachments.get({
+        userId: 'me',
+        messageId: message.id,
+        id: part.body.attachmentId,
+      });
+      pdfBuffer = Buffer.from(attachment.data.data, 'base64');
+    } catch (err) {
+      console.warn('[PDF] Failed to download attachment:', err.message);
+      return '';
+    }
+  }
+
+  if (!pdfBuffer) return '';
+
+  const text = await extractPdfText(pdfBuffer);
+  console.log(`[PDF] Extracted ${text.length} chars from PDF attachment`);
+  return text;
+}
+
+/**
+ * Parse a Gmail message to extract bill details.
+ * Now async to support PDF attachment parsing.
+ */
+async function parseBillEmail(message) {
   const headers = message.payload.headers;
   const subject = headers.find(h => h.name.toLowerCase() === 'subject')?.value || '';
   const from = headers.find(h => h.name.toLowerCase() === 'from')?.value || '';
@@ -226,13 +315,38 @@ function parseBillEmail(message) {
   const allText = `${subject}\n${body}\n${plainFromHtml}`.replace(/[\u200B\u200C\u200D\uFEFF\u00AD]/g, '');
 
   // Try to extract amount
-  const amount = extractAmount(allText);
+  let amount = extractAmount(allText);
 
   // Try to extract due date
-  const dueDate = extractDueDate(allText);
+  let dueDate = extractDueDate(allText);
 
   // Build description
   const description = buildDescription(subject, from);
+
+  // If body parsing failed, try PDF attachment
+  if (!amount || !dueDate) {
+    try {
+      const pdfText = await getPdfAttachmentText(message);
+      if (pdfText.length > 0) {
+        console.log(`[PDF] Trying PDF text for "${subject}"`);
+        const cleanPdfText = pdfText.replace(/[\u200B\u200C\u200D\uFEFF\u00AD]/g, '');
+        if (!amount) amount = extractAmount(cleanPdfText);
+        if (!dueDate) dueDate = extractDueDate(cleanPdfText);
+        console.log(`[PDF] Extracted from PDF: amount=${amount}, dueDate=${dueDate}`);
+        if (!dueDate) {
+          // Show what date-like text is in the PDF to help debug
+          const dateHints = cleanPdfText.match(/\d{1,2}\s+\w+\s+\d{4}|\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}/g);
+          console.log(`[PDF] Date hints:`, dateHints ? dateHints.slice(0, 8) : 'NONE');
+          const dueParts = cleanPdfText.match(/.{0,20}(?:due|pay\s*by|payment\s*date).{0,40}/gi);
+          console.log(`[PDF] Due context:`, dueParts ? dueParts.slice(0, 5) : 'NONE');
+          // Show first 300 chars of PDF
+          console.log(`[PDF] Start of PDF:`, cleanPdfText.substring(0, 300));
+        }
+      }
+    } catch (err) {
+      console.warn('[PDF] Error reading attachment:', err.message);
+    }
+  }
 
   // Must have BOTH amount and due date to be a real bill
   if (!amount || !dueDate) {
