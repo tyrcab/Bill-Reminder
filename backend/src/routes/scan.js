@@ -87,26 +87,8 @@ async function scanAndProcessBills(daysBack = 30, includeProcessed = false) {
       // Parse the email for bill details
       const parsed = await parseBillEmail(email);
       if (!parsed) {
-        const subj = email.payload.headers.find(h => h.name.toLowerCase() === 'subject')?.value || '';
-        if (/water|optus|superloop|gas|electric|spintel|afterpay|powershop/i.test(subj)) {
-          console.log(`[Scan] SKIPPED (parse failed): "${subj}"`);
-          const body = getEmailBody(email.payload);
-          const html = getEmailHtml(email.payload);
-          console.log(`[Debug] Plain text length: ${body.length}, HTML length: ${html.length}`);
-          // Try to find amount and date manually for debugging
-          const plainFromHtml = html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&#?\w+;/g, ' ').replace(/\s+/g, ' ');
-          const allText = `${subj}\n${body}\n${plainFromHtml}`.replace(/[\u200B\u200C\u200D\uFEFF\u00AD]/g, '');
-          // Check for due date
-          const dueMatch = allText.match(/\bdue\s+(\d{1,2})\s+(\w+)\s+(\d{4})/i);
-          const amountMatch = allText.match(/\$\s*(\d{1,6}\.\d{2})/);
-          console.log(`[Debug] Due found: ${dueMatch ? dueMatch[0] : 'NO'}`);
-          console.log(`[Debug] Amount found: ${amountMatch ? amountMatch[0] : 'NO'}`);
-          // Show text around "due" keyword
-          const dueIdx = allText.toLowerCase().indexOf('\ndue ');
-          if (dueIdx > -1) console.log(`[Debug] Text at 'due': "${allText.substring(dueIdx, dueIdx + 60)}"`);
-          const dueIdx2 = body.toLowerCase().indexOf('due ');
-          if (dueIdx2 > -1) console.log(`[Debug] Body at 'due': "${body.substring(dueIdx2, dueIdx2 + 60)}"`);
-        }
+        const subj2 = email.payload.headers.find(h => h.name.toLowerCase() === 'subject')?.value || '';
+        console.log(`[Scan] SKIPPED (parse failed): "${subj2}"`);
         results.skipped++;
         continue;
       }

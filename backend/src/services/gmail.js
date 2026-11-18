@@ -435,6 +435,8 @@ function extractAmount(text) {
   const priorityPatterns = [
     // "total due: $287.19" or "amount due: $86.56" or "total amount due $29.67"
     /(?:total|amount)\s*(?:due|owing|payable)[:\s]*\$\s*(\d{1,6}\.\d{2})/i,
+    // "total amount due $222.41" (Afterpay format with spaces)
+    /total\s*amount\s*due[\s:]*\$?\s*(\d{1,6}\.\d{2})/i,
     // "amount due $12.54"
     /amount\s*due[:\s]*\$\s*(\d{1,6}\.\d{2})/i,
     // "total due $3.52" or "Total due $139.85" (may have newlines between)
@@ -502,7 +504,9 @@ function extractDueDate(text) {
     /\bdue\s+(\d{1,2})(?:st|nd|rd|th)?\s+(\w{3,9})\s+(\d{4})/i,
     // "Date due: 13 March 2026" or "Date due 13 March 2026" (South East Water - reversed)
     /date\s*due[:\s]*(\d{1,2})(?:st|nd|rd|th)?\s+(\w{3,9})\s+(\d{4})/i,
-    // "Due date    Fri, 10 July 2026" (Afterpay format)
+    // "Due date    Fri, 10 July 2026" (Afterpay format with abbreviated weekday)
+    /due\s*date[\s:]+(?:\w{2,3},?\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(\w{3,9})\s+(\d{4})/i,
+    // "Due date    Fri, 10 July 2026" (original Afterpay format with full weekday)
     /due\s*date[:\s]*(?:\w{3,9}day)?[,\s]*(\d{1,2})(?:st|nd|rd|th)?\s+(\w{3,9})\s+(\d{4})/i,
     // "due date: 17 Jul 2026"
     /due\s*date[:\s]+(\d{1,2})(?:st|nd|rd|th)?[\s\/\-]+(\w{3,9}|\d{1,2})[\s\/\-]+(\d{2,4})/i,
