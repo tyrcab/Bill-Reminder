@@ -102,6 +102,7 @@ async function scanAndProcessBills(daysBack = 30, includeProcessed = false) {
 
       // Skip if description matches an ignored pattern
       if (isIgnored(parsed.description, ignoredPatterns)) {
+        console.log(`[Scan] SKIPPED (ignored pattern): "${parsed.description}"`);
         results.skipped++;
         continue;
       }
